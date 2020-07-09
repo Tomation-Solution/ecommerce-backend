@@ -3,27 +3,38 @@ from flask import Flask,jsonify,request
 import json
 import resource
 
-# customers and vendor registration,login and logout
-api.add_resource(resource.CustomerRegistration, '/registration/customer')
-api.add_resource(resource.VendorRegistration, '/registration/vendor')
-api.add_resource(resource.CustomerLogin, '/login/customer')
-api.add_resource(resource.VendorLogin, '/login/vendor')
-
-#api to handle all of customers,products,categories, orders
+# customer registration route method:post
+api.add_resource(resource.CustomerRegistration, '/customer/registration')
+# customer login route method:post
+api.add_resource(resource.CustomerLogin, '/customer/login')
+# get a customer details by vendor
+api.add_resource(resource.Customer, '/customer/<int:customer_id>')
+# get all orders made by a customer method:get,post
+api.add_resource(resource.CustomerOrders, '/customer/orders')
+# get a single order made by customer method: get/patch/delete
+api.add_resource(resource.CustomerOrder, '/customer/orders/<int:order_id>')
+# get all customers details by vendor  method:get
 api.add_resource(resource.AllCustomers, '/customers')
+# get all products by customer or vendor method:get,post
 api.add_resource(resource.AllProducts, '/products')
-api.add_resource(resource.AllOrders, '/orders')
-api.add_resource(resource.Categories, '/categories')
+# get a specific product  method: get/patch/delete
+api.add_resource(resource.Product, '/product/<int:product_id>')
+# vendor registration route method:post
+api.add_resource(resource.VendorRegistration, '/vendor/registration')
+# vendor login route method:post
+api.add_resource(resource.VendorLogin, '/vendor/login')
+# get all orders made to a vendor method:get,post
+api.add_resource(resource.AllOrders, '/vendor/orders')
+# vendor get a specific order method: get/patch/delete
+api.add_resource(resource.Order, '/vendor/order/<int:order_id>')
+# vendor get all categories method:get,post
+api.add_resource(resource.Categories, '/vendor/categories')
+# vendor get a  specific category  method: get/patch/delete
+api.add_resource(resource.Category, '/vendor/category/<int:category_id>')
 
-api.add_resource(resource.CustomerOrders, '/customer/<int:customer_id>/orders')
 
-#api to handle specific customer, product, categories, order
-api.add_resource(resource.Customer, '/user/<int:customer_id>')
-api.add_resource(resource.Product, '/user/<int:product_id>')
-api.add_resource(resource.Order, '/user/<int:order_id>')
-api.add_resource(resource.Category, '/user/<int:category_id>')
 
-api.add_resource(resource.CustomerOrder, '/customer/<int:customer_id>/orders/<int:order_id>')
+
 
 if __name__ == '__main__':
     app.run(debug=True)
