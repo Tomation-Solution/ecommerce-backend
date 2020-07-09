@@ -70,7 +70,7 @@ class Products(db.Model):
     product_image = db.Column(db.String(150), nullable=False)
     category_id = db.Column(db.Integer, db.ForeignKey(
         'categories.category_id'), nullable=False)
-    description = db.Column(db.Text, nullable=False)
+    # description = db.Column(db.Text, nullable=False)
     orderdetails = db.relationship(
         'OrderDetails', backref=db.backref('product', lazy=True))
     stock_quantity = db.Column(db.Integer, nullable=False)
