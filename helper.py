@@ -1,3 +1,5 @@
+from flask_mail import Message
+from config import mail
 # mail sender app
 def send_mail(title,recipient,body=None, email=None, password=None):
     msg = Message(title, recipients=[recipient])
@@ -10,4 +12,4 @@ def send_mail(title,recipient,body=None, email=None, password=None):
     else:
         msg.body = body
     mail.send(msg)
-    return True
+    

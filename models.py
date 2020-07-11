@@ -130,11 +130,40 @@ class Vendor(db.Model):
         db.DateTime, nullable=False, default=datetime.utcnow)
     email = db.Column(db.String(100), unique=True, nullable=False)
     password = db.Column(db.String(500), nullable=False)
-    address = db.Column(db.String(400), nullable=False)
     account_number = db.Column(db.String(10), nullable=False)
     account_name = db.Column(db.String(100), nullable=False)
     bank = db.Column(db.String(50))
+    phone_number = db.Column(db.String(13), nullable=False)
     full_address = db.Column(db.Text, nullable=False)
 
     def __str__(self):
         return '{}'.format(self.name)
+
+    def save_to_db(self):
+        db.session.add(self)
+        db.session.commit()
+
+    def generate_auth_token(self):
+        return jwt.encode({'vendor_id': self.vendor_id}, app.config['SECRET_KEY'])
+
+    @staticmethod
+    def verify_auth_token(token):
+        print('calling the static method')
+        try:
+            data = jwt.decode(token, app.config['SECRET_KEY'])
+        except:
+            print('there was an error')
+            return
+        return Vendor.query.get(data['vendor_id'])
+
+    @classmethod
+    def find_by_username(cls, email):
+        return cls.query.filter_by(email=email).first()
+
+    @staticmethod
+    def generate_hash(password):
+        return sha256.hash(password)
+
+    @staticmethod
+    def verify_hash(password, hash):
+        return sha256.verify(password, hash)

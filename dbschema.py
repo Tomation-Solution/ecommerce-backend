@@ -27,3 +27,17 @@ class OrdersSchema(Schema):
 
 class OrderList(Schema):
     orders = fields.List(fields.Nested(OrderSchema(only=("product_id","quantity","cost"))))
+
+
+class VendorSchema(Schema):
+    vendor_id = fields.Integer(strict=True)
+    name = fields.Str(required=True, error_messages={"required":"name is required"})
+    vendor_logo = fields.String(required=True, error_messages={"required":"company logo is required"})
+    date_created = fields.DateTime()
+    email = fields.Email(required=True, error_messages={"required":"email cannot be empty"})
+    password  = fields.Str(validate=fields.Length(8,15))
+    full_address = fields.String(required=True, error_messages={"required":"Address is required"})
+    account_number = fields.String(required=True)
+    phone_number = fields.Str(validate=fields.Length(11,13))
+    account_name =  fields.String(required=True)
+    bank =  fields.String(required=True)

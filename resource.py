@@ -7,7 +7,7 @@ from models import *
 from config import mail
 from flask_mail import Message
 from helper import send_mail
-from dbschema import CustomersSchema, OrdersSchema, OrderSchema, OrderList
+from dbschema import CustomersSchema, OrdersSchema, OrderSchema, OrderList, VendorSchema
 
 # api to handle customer related activities
 auth = HTTPTokenAuth(scheme='Bearer')
@@ -22,7 +22,6 @@ def verify_token(token):
         return False
     g.user = user
     return True
-
 
 
 class AuthRequiredResources(Resource):
@@ -57,13 +56,14 @@ class CustomerRegistration(Resource):
                 password=Customers.generate_hash(data['password'])
             )
             try:
+                send_mail("Welcome to Our pharmaceutic e-commerce platform",
+                          data['email'], email=data['email'], password=data['password'])
                 c.save_to_db()
                 user = Customers.query.filter_by(email=data['email']).first()
-                access_token = create_access_token(identity=user.customer_id)
-                send_mail("Welcome to Our pharmaceutic e-commerce platform",recipient=data['email'],email=data['email'],password=data['password'])
+                access_token = user.generate_auth_token()
                 return {
                     'message': 'User {} was created'.format(data['email']),
-                    'access_token': access_token,
+                    'access_token': access_token.decode(),
                     'firstname': data['firstname'],
                     'lastname': data['lastname'],
                     'customer_id': user.customer_id
@@ -87,7 +87,6 @@ class CustomerLogin(Resource):
 
         # check if email already exists
         user = Customers.find_by_username(data['email'])
-        print('one user found', user)
         if user and Customers.verify_hash(data['password'], user.password):
             access_token = user.generate_auth_token()
             return {
@@ -134,23 +133,24 @@ class CustomerOrders(AuthRequiredResources):
                 pd = Products.query.get_or_404(pid)
             except:
                 return {
-                    "status": "error", 
+                    "status": "error",
                     "data": "Product with id {} not available".format(pid)}, HTTP_404_NOT_FOUND
                 break
                 abort(404)
             # check the quantity left against demanded
             if o['quantity'] > pd.stock_quantity:
                 # return a message if anyone is more than the available
-                return {"status":"error", "data":"quantity ordered for product {} less than available".format(pid)},HTTP_400_BAD_REQUEST
-                break 
+                return {"status": "error", "data": "quantity ordered for product {} less than available".format(pid)}, HTTP_400_BAD_REQUEST
+                break
 
-        #decrement stock quantity by quantity demanded
+        # decrement stock quantity by quantity demanded
         # update the stock quantity in the product
         for o in orderlist:
             pid = o['product_id']
             demanded_qty = o['quantity']
             pd = Products.query.get_or_404(pid)
-            Products.query.filter_by(product_id=pid).update({Products.stock_quantity:pd.stock_quantity - demanded_qty})
+            Products.query.filter_by(product_id=pid).update(
+                {Products.stock_quantity: pd.stock_quantity - demanded_qty})
         db.session.commit()
 
         # aggregate the total cost and total quantity
@@ -174,8 +174,9 @@ class CustomerOrders(AuthRequiredResources):
         # return full details of the stored order
         the_order = Orders.query.get(the_order.order_id)
         response = OrdersSchema().dump(the_order)
-        body = "Your order with order id {} has been recieved, ensure to login to monitor your order status".format(the_order.order_id)
-        send_mail("MAIL ORDER RECIEVED",recipient=g.user.email, body=body)
+        body = "Your order with order id {} has been recieved, ensure to login to monitor your order status".format(
+            the_order.order_id)
+        send_mail("MAIL ORDER RECIEVED", recipient=g.user.email, body=body)
         return response, HTTP_201_CREATED
 
     # customer gets all his orders
@@ -195,7 +196,8 @@ class CustomerOrder(AuthRequiredResources):
             order = Orders.query.get_or_404(order_id)
         except:
             return {"status": "error", "data": "No Order with such id"}, HTTP_404_NOT_FOUND
-        Orders.query.filter_by(order_id=order_id).update({Orders.status:'cancelled'})
+        Orders.query.filter_by(order_id=order_id).update(
+            {Orders.status: 'cancelled'})
         db.session.commit()
         return {"status": "success", "data": "order with id {} cancelled".format(order.order_id)}, HTTP_200_OK
 
@@ -206,12 +208,12 @@ class CustomerOrder(AuthRequiredResources):
         except:
             return {"status": "error", "data": "No Order with such id"}, HTTP_404_NOT_FOUND
         orderdetails = OrderDetails.query.filter_by(order_id=order_id).all()
-        orderdetails=OrderSchema(many=True).dump(orderdetails)
+        orderdetails = OrderSchema(many=True).dump(orderdetails)
         order = OrdersSchema().dump(order)
         order["orders"] = orderdetails
         return {
-            "status":"success",
-            "data":order
+            "status": "success",
+            "data": order
         }
 
 
@@ -221,51 +223,57 @@ class Customer(Resource):
 
 # api to handle vendor relative activities
 class VendorRegistration(Resource):
-   
+
     def post(self):
         # get incoming data
         data = request.json
         # check if data is valid
         try:
-            result = CustomersSchema(
-                exclude=("customer_id", "date_created")).load(data)
+            result = VendorSchema(
+                exclude=("vendor_id", "date_created")).load(data)
         except ValidationError as err:
             err.messages['status'] = 'error'
             return err.messages, HTTP_400_BAD_REQUEST
 
-        # # check if email already exists
-        # if Customers.find_by_username(data['email']):
-        #     return {'status': 'error',
-        #             'data': 'User {} already exists'. format(data['email'])
-        #             }, HTTP_400_BAD_REQUEST
-        # else:
-
-            # c = Customers(
-            #     firstname=data['firstname'],
-            #     lastname=data['lastname'],
-            #     email=data['email'],
-            #     phone_number=data['phone_number'],
-            #     password=Customers.generate_hash(data['password'])
-            # )
-            # try:
-            #     c.save_to_db()
-            #     user = Customers.query.filter_by(email=data['email']).first()
-            #     access_token = create_access_token(identity=user.customer_id)
-            #     send_mail("Welcome to Our pharmaceutic e-commerce platform",recipient=data['email'],email=data['email'],password=data['password'])
-            #     return {
-            #         'message': 'User {} was created'.format(data['email']),
-            #         'access_token': access_token,
-            #         'firstname': data['firstname'],
-            #         'lastname': data['lastname'],
-            #         'customer_id': user.customer_id
-            #     }, HTTP_201_CREATED
-            # except:
-            #     db.session.rollback()
-            #     return {'message': 'Something went wrong'}, 500
+        # check if email already exists
+        if Vendor.find_by_username(result['email']):
+            return {'status': 'error',
+                    'data': 'User {} already exists'. format(data['email'])
+                    }, HTTP_400_BAD_REQUEST
+        else:
+            v = Vendor(
+                name=result['name'],
+                vendor_logo=result['vendor_logo'],
+                email=result['email'],
+                account_number=result["account_number"],
+                account_name=result["account_name"],
+                phone_number=result['phone_number'],
+                password=Vendor.generate_hash(result['password']),
+                bank=result['bank'],
+                full_address=result['full_address']
+            )
+            try:
+                v.save_to_db()
+                # send_mail("Welcome to Our pharmaceutic e-commerce platform",
+                #           data['email'], email=data['email'], password=data['password'])
+                v = Vendor.query.filter_by(email=data['email']).first()
+                access_token = v.generate_auth_token()
+                return {
+                    'message': 'User {} was created'.format(data['email']),
+                    'access_token':access_token.decode(),
+                    'name': result['name'],
+                    'vendor_id': v.vendor_id
+                }, HTTP_201_CREATED
+            except:
+                db.session.rollback()
+                return {'message': 'Something went wrong'}, 500
 
 
 class VendorLogin(Resource):
-    pass
+    def post(self):
+        send_mail("Welcome to Our pharmaceutic e-commerce platform",
+                  "alevel7@gmail.com", email="alevel7@gmail.com", password="12345")
+        return "sent"
 
 
 # api to handle product related activities
@@ -283,6 +291,8 @@ class AllOrders(Resource):
     pass
 
 # api to handle order related activities by vendor
+
+
 class Order(Resource):
     pass
 
