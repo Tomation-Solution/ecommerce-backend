@@ -32,6 +32,9 @@ api.add_resource(resource.Categories, '/vendor/categories')
 # vendor get a  specific category  method: get/patch/delete
 api.add_resource(resource.Category, '/vendor/category/<int:category_id>')
 
+#get all products for a category
+# api.add_resource(resource.ProductByCategory, '/category/<int:category_id/products')
+#search for a product by name
 
 
 

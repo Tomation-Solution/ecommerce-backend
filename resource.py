@@ -4,6 +4,9 @@ from marshmallow import ValidationError
 from status import *
 from flask_httpauth import HTTPBasicAuth, HTTPTokenAuth
 from models import *
+from config import mail
+from flask_mail import Message
+from helper import send_mail
 from dbschema import CustomersSchema, OrdersSchema, OrderSchema, OrderList
 
 # api to handle customer related activities
@@ -19,6 +22,7 @@ def verify_token(token):
         return False
     g.user = user
     return True
+
 
 
 class AuthRequiredResources(Resource):
@@ -56,6 +60,7 @@ class CustomerRegistration(Resource):
                 c.save_to_db()
                 user = Customers.query.filter_by(email=data['email']).first()
                 access_token = create_access_token(identity=user.customer_id)
+                send_mail("Welcome to Our pharmaceutic e-commerce platform",recipient=data['email'],email=data['email'],password=data['password'])
                 return {
                     'message': 'User {} was created'.format(data['email']),
                     'access_token': access_token,
@@ -169,6 +174,8 @@ class CustomerOrders(AuthRequiredResources):
         # return full details of the stored order
         the_order = Orders.query.get(the_order.order_id)
         response = OrdersSchema().dump(the_order)
+        body = "Your order with order id {} has been recieved, ensure to login to monitor your order status".format(the_order.order_id)
+        send_mail("MAIL ORDER RECIEVED",recipient=g.user.email, body=body)
         return response, HTTP_201_CREATED
 
     # customer gets all his orders
@@ -214,7 +221,47 @@ class Customer(Resource):
 
 # api to handle vendor relative activities
 class VendorRegistration(Resource):
-    pass
+   
+    def post(self):
+        # get incoming data
+        data = request.json
+        # check if data is valid
+        try:
+            result = CustomersSchema(
+                exclude=("customer_id", "date_created")).load(data)
+        except ValidationError as err:
+            err.messages['status'] = 'error'
+            return err.messages, HTTP_400_BAD_REQUEST
+
+        # # check if email already exists
+        # if Customers.find_by_username(data['email']):
+        #     return {'status': 'error',
+        #             'data': 'User {} already exists'. format(data['email'])
+        #             }, HTTP_400_BAD_REQUEST
+        # else:
+
+            # c = Customers(
+            #     firstname=data['firstname'],
+            #     lastname=data['lastname'],
+            #     email=data['email'],
+            #     phone_number=data['phone_number'],
+            #     password=Customers.generate_hash(data['password'])
+            # )
+            # try:
+            #     c.save_to_db()
+            #     user = Customers.query.filter_by(email=data['email']).first()
+            #     access_token = create_access_token(identity=user.customer_id)
+            #     send_mail("Welcome to Our pharmaceutic e-commerce platform",recipient=data['email'],email=data['email'],password=data['password'])
+            #     return {
+            #         'message': 'User {} was created'.format(data['email']),
+            #         'access_token': access_token,
+            #         'firstname': data['firstname'],
+            #         'lastname': data['lastname'],
+            #         'customer_id': user.customer_id
+            #     }, HTTP_201_CREATED
+            # except:
+            #     db.session.rollback()
+            #     return {'message': 'Something went wrong'}, 500
 
 
 class VendorLogin(Resource):
@@ -223,18 +270,19 @@ class VendorLogin(Resource):
 
 # api to handle product related activities
 class AllProducts(Resource):
-    pass
+    def get(self):
+        pass
 
 
 class Product(Resource):
     pass
 
 
-# api to handle orders related activities
+# api to handle orders related activities by vendor
 class AllOrders(Resource):
     pass
 
-
+# api to handle order related activities by vendor
 class Order(Resource):
     pass
 
