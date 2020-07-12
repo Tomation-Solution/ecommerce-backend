@@ -59,6 +59,8 @@ class Address(db.Model):
     full_address = db.Column(db.Text, nullable=False)
     date_created = db.Column(
         db.DateTime, nullable=False, default=datetime.utcnow)
+    order = db.relationship('Orders', backref=db.backref(
+        'address', lazy=True), cascade="all, delete-orphan")
 
     def __str__(self):
         return '<Address: {}>'.format(self.full_address)
@@ -104,6 +106,8 @@ class Orders(db.Model):
     total_price = db.Column(db.Numeric())
     customer_id = db.Column(db.Integer, db.ForeignKey(
         'customers.customer_id'), nullable=False)
+    address_id = db.Column(db.Integer, db.ForeignKey(
+        'address.address_id'), nullable=False)
     orderdetails = db.relationship('OrderDetails', backref=db.backref(
         'order', lazy=True), cascade="all, delete-orphan")
     status = db.Column(db.String(25), nullable=False, default='progress')

@@ -12,4 +12,6 @@ def send_mail(title,recipient,body=None, email=None, password=None):
     else:
         msg.body = body
     mail.send(msg)
+
+ALLOWED_EXTENSIONS = {'jpg','png','jpeg','gif'}
     

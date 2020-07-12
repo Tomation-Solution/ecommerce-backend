@@ -3,7 +3,7 @@ from flask import Flask,jsonify,request
 import json
 import resource
 
-# customer registration route method:post
+# customer registration route method:post,patch to update
 api.add_resource(resource.CustomerRegistration, '/customer/registration')
 # customer login route method:post
 api.add_resource(resource.CustomerLogin, '/customer/login')
@@ -34,6 +34,7 @@ api.add_resource(resource.Category, '/vendor/category/<int:category_id>')
 
 #get all products for a category
 # api.add_resource(resource.ProductByCategory, '/category/<int:category_id/products')
+
 #search for a product by name
 
 

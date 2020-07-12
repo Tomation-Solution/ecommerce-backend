@@ -1,5 +1,11 @@
 from marshmallow import Schema, fields,validates, ValidationError
 
+class AddressSchema(Schema):
+    address_id = fields.Integer(strict=True)
+    customer_id = fields.Integer(strict=True)
+    full_address = fields.String(required=True,error_messages={"required":"Adress is required"})
+    date_created = fields.DateTime()
+
 class CustomersSchema(Schema):
     customer_id = fields.Integer(strict=True)
     firstname = fields.String(required=True, error_messages={"required":"first name is required"})
@@ -23,11 +29,8 @@ class OrdersSchema(Schema):
     total_price = fields.Integer(required=True)
     customer_id = fields.Integer(required=True, strict=True)
     status = fields.Str(required=True)
+    address_id = fields.Integer(strict=True)
     orders = fields.List(fields.Nested(OrderSchema()))
-
-class OrderList(Schema):
-    orders = fields.List(fields.Nested(OrderSchema(only=("product_id","quantity","cost"))))
-
 
 class VendorSchema(Schema):
     vendor_id = fields.Integer(strict=True)
@@ -37,7 +40,17 @@ class VendorSchema(Schema):
     email = fields.Email(required=True, error_messages={"required":"email cannot be empty"})
     password  = fields.Str(validate=fields.Length(8,15))
     full_address = fields.String(required=True, error_messages={"required":"Address is required"})
-    account_number = fields.String(required=True)
+    account_number = fields.String(required=True,error_messages={"required":"account number is required"})
     phone_number = fields.Str(validate=fields.Length(11,13))
     account_name =  fields.String(required=True)
     bank =  fields.String(required=True)
+
+class ProductsSchema(Schema):
+    product_id = fields.Integer(strict=True)
+    product_name =fields.String(required=True)
+    product_image = fields.String(required=True)
+    category_id = fields.Integer(strict=True, required=True)
+    description = fields.String(required=True)
+    stock_quantity = fields.Integer(required=True)
+    price =fields.Integer(required=True)
+    date_created = fields.DateTime()
