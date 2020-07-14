@@ -13,5 +13,10 @@ def send_mail(title,recipient,body=None, email=None, password=None):
         msg.body = body
     mail.send(msg)
 
+def sales_view_table_updater(product, sales=False, views=True):
+    if views:
+        pass
+    elif sales:
+        pass
 ALLOWED_EXTENSIONS = {'jpg','png','jpeg','gif'}
     

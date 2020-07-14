@@ -215,6 +215,14 @@ class CustomerOrder(AuthRequiredResources):
             return {"status": "error", "data": "No Order with such id"}, HTTP_404_NOT_FOUND
         Orders.query.filter_by(order_id=order_id).update(
             {Orders.status: 'cancelled'})
+        # update stock
+        for eachproduct in order.query.get(order_id).orderdetails:
+            # get a reference to the product
+            product = Products.query.filter_by(
+                product_id=eachproduct.product_id)
+            # update the product
+            product.update(
+                {Products.stock_quantity: product.stock_quantity + eachproduct.quantity})
         db.session.commit()
         return {"status": "success", "data": "order with id {} cancelled".format(order.order_id)}, HTTP_200_OK
 
@@ -336,33 +344,81 @@ class VendorLogin(Resource):
 
 
 # api to handle product related activities
-class AllProducts(AuthRequiredResources):
+class AllProducts(Resource):
     def get(self):
-        result = ProductsSchema(many=True).dump(Products.query.all())
-        try:
-            #check if the person is a vendor, returns all products
-            id = g.user.vendor_id
-            return {"status":"success", "data":result},HTTP_200_OK
-        except AttributeError:
-            # the person must be a customer, returns random 6
-            result = [random.choice(result) for i in range(6)]
-        return {"status":"success", "data":result},HTTP_200_OK
-    def post(self):
-        data = request.form
-        data = ProductsSchema().dump(dict(data))
-        print(data)
-        return 'recieved'
+        if request.args.get('q') == None:
+            result = ProductsSchema(many=True).dump(Products.query.all())
+            return {"status": "success", "data": result}, HTTP_200_OK
+        else:
+            required = request.args.get('q')
+            # get top 10 products order by total views
+            # return the result
 
+    def post(self):
+        # gets an immutable dict of all fields in the form
+        data = request.form
+        datafile = request.files.get('product_image')
+        if datafile.filename != '':
+            data = dict(data)
+            data['product_image'] = datafile.filename
+            data = ProductsSchema(exclude=('product_id','date_created')).dump(data)
+            try:
+                p=Products(product_name=data['product_name'], product_image=data['product_image'], description=data['description'],
+                 category_id=data['category_id'], stock_quantity=data['stock_quantity'], price=data['price'])
+            except KeyError as error:
+                return {"status":"error", "data":"one or more field missing"},HTTP_400_BAD_REQUEST
+                abort(400)
+            db.session.add(p)
+            db.session.commit()
+            datafile.save(app.config['UPLOAD_FOLDER']+datafile.filename)
+            return {"status":"success", "data":"uploaded successfully"},HTTP_200_OK
+        return {"status":"error", "data":"no image selected"},HTTP_400_BAD_REQUEST
 
 
 class Product(Resource):
-    def get(self):
-        pass
-    def patch(self):
-        pass
-    def delete(self):
-        pass
+    def get(self, product_id):
+        try:
+            result = Products.query.get_or_404(product_id)
+        except:
+            return {"status":"error","data":"No product with such id"}
+        response = ProductsSchema().dump(result)
+        response['total_views'] = result.salesviewhistory[0].total_views
+        response['total_sales'] = result.salesviewhistory[0].total_sales
+        return {"status":"error","data":response}
+        
 
+    def patch(self, product_id):
+        data = dict(request.form)
+        # fetch the product from the table, return error if not
+        try:
+            Products.query.get_or_404(product_id)
+        except:
+            return {"status":"error", "data":"No product with id {}".format(product_id)},HTTP_404_NOT_FOUND
+        
+        # check if file exists
+        datafile = request.files.get('product_image')
+        if datafile.filename == '':
+            return {"status":"error", "data":"no image selected"},HTTP_400_BAD_REQUEST
+        # update the product in the table
+        product_name = data['product_name']
+        category_id = data['category_id']
+        description = data['description']
+        product_image = datafile.filename
+        stock_quantity = data['stock_quantity']
+        price = data['price']
+        Products.query.filter_by(product_id=product_id).update({
+            Products.product_name : product_name,
+            Products.category_id : category_id,
+            Products.description: description,
+            Products.stock_quantity: stock_quantity,
+            Products.price: price,
+            Products.product_image: product_image
+        })
+        db.session.commit()
+
+        response = Products.query.get(product_id)
+        response = ProductsSchema().dump(response)
+        return {"status":"success", "data":response},HTTP_200_OK 
 
 # api to handle orders related activities by vendor
 class AllOrders(Resource):
@@ -375,19 +431,24 @@ class AllOrders(Resource):
 class Order(Resource):
     def get(self, order_id):
         pass
+
     def patch(self, order_id):
         pass
 
 # api to handle category related activities
+
+
 class Categories(Resource):
     def get(self):
         pass
+
     def post(self):
         pass
 
 
 class Category(Resource):
     pass
+
 
 class ProductByCategory(Resource):
     def get(self, category_id):

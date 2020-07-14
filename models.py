@@ -75,6 +75,7 @@ class Products(db.Model):
     description = db.Column(db.Text, nullable=False)
     orderdetails = db.relationship(
         'OrderDetails', backref=db.backref('product', lazy=True))
+    salesviewhistory = db.relationship('SalesViewHistory', backref=db.backref('product', lazy=True), cascade="all, delete-orphan")
     stock_quantity = db.Column(db.Integer, nullable=False)
     price = db.Column(db.Numeric())
     date_created = db.Column(
@@ -171,3 +172,11 @@ class Vendor(db.Model):
     @staticmethod
     def verify_hash(password, hash):
         return sha256.verify(password, hash)
+
+
+
+class SalesViewHistory(db.Model):
+     vsales_id = db.Column(db.Integer, primary_key=True)
+     product_id = db.Column(db.Integer,db.ForeignKey('products.product_id'))
+     total_views = db.Column(db.Integer)
+     total_sales = db.Column(db.Integer)
