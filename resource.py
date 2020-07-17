@@ -1,4 +1,4 @@
-import random
+import random,os
 from flask_restful import Resource, reqparse
 from flask import request, g, abort
 from marshmallow import ValidationError
@@ -9,7 +9,7 @@ from models import *
 from config import mail
 from flask_mail import Message
 from helper import send_mail, ALLOWED_EXTENSIONS
-from dbschema import ProductsSchema, CustomersSchema, OrdersSchema, OrderSchema, VendorSchema
+from dbschema import *
 
 # api to handle customer related activities
 auth = HTTPTokenAuth(scheme='Bearer')
@@ -198,7 +198,7 @@ class CustomerOrders(AuthRequiredResources):
 
     # customer gets all his orders
     def get(self):
-        orders = g.user.order
+        orders = Orders.query.filter_by(customer_id=g.user.customer_id).order_by(Orders.date_ordered).all()
         filter = OrdersSchema(exclude=("orders",))
         return {
             "status": "success",
@@ -208,21 +208,13 @@ class CustomerOrders(AuthRequiredResources):
 
 class CustomerOrder(AuthRequiredResources):
     # customer cancels a specific order
-    def delete(self, order_id):
+    def patch(self, order_id):
         try:
             order = Orders.query.get_or_404(order_id)
         except:
             return {"status": "error", "data": "No Order with such id"}, HTTP_404_NOT_FOUND
         Orders.query.filter_by(order_id=order_id).update(
             {Orders.status: 'cancelled'})
-        # update stock
-        for eachproduct in order.query.get(order_id).orderdetails:
-            # get a reference to the product
-            product = Products.query.filter_by(
-                product_id=eachproduct.product_id)
-            # update the product
-            product.update(
-                {Products.stock_quantity: product.stock_quantity + eachproduct.quantity})
         db.session.commit()
         return {"status": "success", "data": "order with id {} cancelled".format(order.order_id)}, HTTP_200_OK
 
@@ -245,6 +237,16 @@ class CustomerOrder(AuthRequiredResources):
             "status": "success",
             "data": d_order
         }
+
+    def delete(self, order_id):
+        try:
+            order = Orders.query.get_or_404(order_id)
+        except:
+            return {"status": "error", "data": "No Order with such id"}, HTTP_404_NOT_FOUND
+        result = Orders.query.filter_by(order_id=order_id).first()
+        db.session.delete(result)
+        db.session.commit()
+        return {"status":"success","data":"order with id {} deleted".format(order_id)},HTTP_204_NO_CONTENT
 
 
 # api to work with individual customers
@@ -300,8 +302,8 @@ class VendorRegistration(Resource):
             try:
                 v.save_to_db()
                 vendor_lg.save(app.config['UPLOAD_FOLDER']+vendor_lg.filename)
-                # send_mail("Welcome to Our pharmaceutic e-commerce platform",
-                #           data['email'], email=data['email'], password=data['password'])
+                send_mail("Welcome to Our pharmaceutic e-commerce platform",
+                          data['email'], email=data['email'], password=data['password'])
                 v = Vendor.query.filter_by(email=data['email']).first()
                 access_token = v.generate_auth_token()
                 return {
@@ -346,15 +348,48 @@ class VendorLogin(Resource):
 # api to handle product related activities
 class AllProducts(Resource):
     def get(self):
-        if request.args.get('q') == None:
+        # check if request parameter is empty, returns all products
+        if request.args == {}:
+            # return all products
             result = ProductsSchema(many=True).dump(Products.query.all())
             return {"status": "success", "data": result}, HTTP_200_OK
+        # return products based on categories
+        elif 'category' in request.args:
+            # return based on category
+            name = request.args.get('category')
+            # gets the category from the db
+            cat = Categories.query.filter_by(category_name=name).first()
+            # returns all products for a category
+            result = cat.product
+            response = ProductsSchema(many=True).dump(result)
+            return {"status":"success","data":response},HTTP_200_OK
+        # return products based on type
+        elif 'type' in request.args:
+            # gets the type specified in the request parameters
+            requested_type = request.args.get('type')
+            if requested_type == 'mostviewed':
+                result = SalesViewHistory.query.order_by(SalesViewHistory.total_views.desc()).limit(6)
+                response = [ProductsSchema().dump(r.product) for r in result]
+                return {"status":"success","data":response},HTTP_200_OK
+            elif requested_type == 'bestsellers':
+                result = SalesViewHistory.query.order_by(SalesViewHistory.total_sales.desc()).limit(6)
+                response = [ProductsSchema().dump(r.product) for r in result]
+                return {"status":"success","data":response},HTTP_200_OK
+        # return products based on search
+        elif 'search' in request.args:
+            requested_type = request.args.get('search')
+            
         else:
-            required = request.args.get('q')
-            # get top 10 products order by total views
-            # return the result
+            return {"status":"error", "data":"Invalid request"}, HTTP_400_BAD_REQUEST
 
+
+    @auth.login_required
     def post(self):
+        # check if use is a vendor
+        try:
+            id = g.user.vendorid
+        except:
+            return {"status":"error", "data":"unauthorized"}, HTTP_401_UNAUTHORIZED
         # gets an immutable dict of all fields in the form
         data = request.form
         datafile = request.files.get('product_image')
@@ -371,7 +406,7 @@ class AllProducts(Resource):
             db.session.add(p)
             db.session.commit()
             datafile.save(app.config['UPLOAD_FOLDER']+datafile.filename)
-            return {"status":"success", "data":"uploaded successfully"},HTTP_200_OK
+            return {"status":"success", "data":ProductsSchema().dump(p)},HTTP_200_OK
         return {"status":"error", "data":"no image selected"},HTTP_400_BAD_REQUEST
 
 
@@ -386,12 +421,16 @@ class Product(Resource):
         response['total_sales'] = result.salesviewhistory[0].total_sales
         return {"status":"error","data":response}
         
-
+    @auth.login_required
     def patch(self, product_id):
+        try:
+            id = g.user.vendor_id
+        except:
+            return {"status":"error", "data":"unauthorized"}, HTTP_401_UNAUTHORIZED
         data = dict(request.form)
         # fetch the product from the table, return error if not
         try:
-            Products.query.get_or_404(product_id)
+            initial_product = Products.query.get_or_404(product_id)
         except:
             return {"status":"error", "data":"No product with id {}".format(product_id)},HTTP_404_NOT_FOUND
         
@@ -415,41 +454,42 @@ class Product(Resource):
             Products.product_image: product_image
         })
         db.session.commit()
-
+        datafile.save(app.config['UPLOAD_FOLDER']+datafile.filename)
+        os.remove(app.config['UPLOAD_FOLDER']+initial_product.product_image)
         response = Products.query.get(product_id)
         response = ProductsSchema().dump(response)
         return {"status":"success", "data":response},HTTP_200_OK 
 
 # api to handle orders related activities by vendor
-class AllOrders(Resource):
+class AllOrders(AuthRequiredResources):
     def get(self):
-        pass
-
-# api to handle order related activities by vendor
-
-
-class Order(Resource):
-    def get(self, order_id):
-        pass
-
-    def patch(self, order_id):
-        pass
+        try:
+            id = g.user.vendor_id
+        except:
+            return {"status":"error", "data":"unauthorized user"},HTTP_401_UNAUTHORIZED
+        result = Orders.query.all()
+        result = OrdersSchema().dump(result)
+        return {"status":"success","data":result}
 
 # api to handle category related activities
 
 
-class Categories(Resource):
+class AllCategories(Resource):
     def get(self):
-        pass
+        result = Categories.query.all()
+        response = CategoriesSchema(many=True).dump(result)
+        return {"status":"success", "data":response}, HTTP_200_OK
 
     def post(self):
-        pass
+        data = request.json
+        data = CategoriesSchema(only=('category_name',)).dump(data)
+        c = Categories(category_name=data['category_name'])
+        db.session.add(c)
+        db.session.commit()
+        response = CategoriesSchema().dump(c)
+        return {"status":"success","data":response},HTTP_201_CREATED
+
 
 
 class Category(Resource):
     pass
-
-
-class ProductByCategory(Resource):
-    def get(self, category_id):
-        pass

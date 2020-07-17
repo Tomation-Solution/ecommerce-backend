@@ -53,4 +53,9 @@ class ProductsSchema(Schema):
     description = fields.String(required=True)
     stock_quantity = fields.Integer(required=True)
     price =fields.Integer(required=True)
-    date_created = fields.DateTime()
+    date_created =  fields.String(required=True)
+
+class CategoriesSchema(Schema):
+    category_id = fields.Integer(strict=True)
+    category_name =  fields.String(required=True)
+    date_created =  fields.String(required=True)

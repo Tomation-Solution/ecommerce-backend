@@ -25,15 +25,10 @@ api.add_resource(resource.VendorRegistration, '/vendor/registration')
 api.add_resource(resource.VendorLogin, '/vendor/login')
 # get all orders made to a vendor method:get,post
 api.add_resource(resource.AllOrders, '/vendor/orders')
-# vendor get a specific order method: get/patch/delete
-api.add_resource(resource.Order, '/vendor/order/<int:order_id>')
 # vendor get all categories method:get,post
-api.add_resource(resource.Categories, '/vendor/categories')
+api.add_resource(resource.AllCategories, '/vendor/categories')
 # vendor get a  specific category  method: get/patch/delete
 api.add_resource(resource.Category, '/vendor/category/<int:category_id>')
-
-#get all products for a category
-# api.add_resource(resource.ProductByCategory, '/category/<int:category_id/products')
 
 #search for a product by name
 
@@ -41,4 +36,4 @@ api.add_resource(resource.Category, '/vendor/category/<int:category_id>')
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run()

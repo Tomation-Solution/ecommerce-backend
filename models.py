@@ -112,6 +112,7 @@ class Orders(db.Model):
     orderdetails = db.relationship('OrderDetails', backref=db.backref(
         'order', lazy=True), cascade="all, delete-orphan")
     status = db.Column(db.String(25), nullable=False, default='progress')
+    #add a payment type
 
     def __str__(self):
         return "{} {}".format(self.total_quantity, self.total_price)
