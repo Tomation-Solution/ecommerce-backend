@@ -14,7 +14,8 @@ UPLOAD_FOLDER = os.curdir + os.path.sep + 'static/'
 basedir = os.path.abspath(os.path.dirname(__file__))
 load_dotenv(os.path.join(basedir, '.env'))
 
-app.config['SQLALCHEMY_DATABASE_URI'] = "mysql+pymysql://root:Oluranti08056965@localhost:3306/ecommerce"
+app.config['SQLALCHEMY_DATABASE_URI'] = "mysql+pymysql://{}:{}@{}/ecommerce".format(
+    os.environ['DATABASE_USERNAME'], os.environ['DATABASE_PASSWORD'], os.environ['HOST'], os.environ['DATABASE_NAME'])
 app.config['SQLALCHEMY_ECHO'] = True
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.environ['SECRET_KEY']
@@ -34,6 +35,7 @@ mail = Mail(app)
 migrate = Migrate(app, db)
 whooshee = Whooshee(app)
 whooshee.reindex()
+
 
 @app.before_first_request
 def create_tables():
