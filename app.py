@@ -1,8 +1,10 @@
 from dotenv import load_dotenv
 from config import app, api
 from flask import Flask,jsonify,request
-import json
+import json,os
 import resource
+
+load_dotenv(os.path.join(basedir, '.env'))
 
 # customer registration route method:post
 api.add_resource(resource.CustomerRegistration, '/customers/registration')
