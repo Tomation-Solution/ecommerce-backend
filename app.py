@@ -4,8 +4,6 @@ from flask import Flask,jsonify,request
 import json,os
 import resource
 
-load_dotenv(os.path.join(basedir, '.env'))
-
 # customer registration route method:post
 api.add_resource(resource.CustomerRegistration, '/customers/registration')
 # customer login route method:post

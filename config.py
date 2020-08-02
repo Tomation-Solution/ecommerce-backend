@@ -3,13 +3,14 @@ from flask import Flask
 from flask_migrate import Migrate, MigrateCommand
 from flask_restful import Api
 from flask_mail import Mail
+from flask_cors import CORS
 from dotenv import load_dotenv
 from flask_whooshee import Whooshee
 import os
 
 
 app = Flask(__name__)
-
+CORS(app) # to enable cross site origin 
 UPLOAD_FOLDER = os.curdir + os.path.sep + 'static/'
 basedir = os.path.abspath(os.path.dirname(__file__))
 load_dotenv(os.path.join(basedir, '.env'))
