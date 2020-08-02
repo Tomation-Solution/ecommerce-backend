@@ -28,8 +28,12 @@ class OrdersSchema(Schema):
     total_quantity = fields.Integer(required=True, strict=True)
     total_price = fields.Integer(required=True)
     customer_id = fields.Integer(required=True, strict=True)
+    paymenttype_id = fields.Integer(required=True, strict=True)
     status = fields.Str(required=True)
     address_id = fields.Integer(strict=True)
+    paid = fields.Integer(required=True, strick=True)
+    transaction_id = fields.Integer(required=True, strick=True)
+    transaction_reference = fields.String(required=True)
     orders = fields.List(fields.Nested(OrderSchema()))
 
 class VendorSchema(Schema):
@@ -51,6 +55,7 @@ class ProductsSchema(Schema):
     product_image = fields.String(required=True)
     category_id = fields.Integer(strict=True, required=True)
     description = fields.String(required=True)
+    manufacturer = fields.String(required=True)
     stock_quantity = fields.Integer(required=True)
     price =fields.Integer(required=True)
     date_created =  fields.String(required=True)
@@ -59,3 +64,7 @@ class CategoriesSchema(Schema):
     category_id = fields.Integer(strict=True)
     category_name =  fields.String(required=True)
     date_created =  fields.String(required=True)
+
+class PaymentTypeSchema(Schema):
+    paymenttype_id = fields.Integer(strict=True)
+    payment_type = fields.String(required=True)

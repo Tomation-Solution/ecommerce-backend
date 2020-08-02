@@ -1,4 +1,4 @@
-from config import db, app
+from config import db, app,whooshee
 from datetime import datetime
 from passlib.hash import pbkdf2_sha256 as sha256
 import jwt
@@ -15,6 +15,8 @@ class Customers(db.Model):
     phone_number = db.Column(db.String(13), nullable=False)
     password = db.Column(db.String(500), nullable=False)
     address = db.relationship('Address', backref=db.backref(
+        'customer', lazy=True), cascade="all, delete-orphan")
+    reviews = db.relationship('Review', backref=db.backref(
         'customer', lazy=True), cascade="all, delete-orphan")
     order = db.relationship(
         'Orders', backref=db.backref('customer'), lazy=True)
@@ -65,17 +67,19 @@ class Address(db.Model):
     def __str__(self):
         return '<Address: {}>'.format(self.full_address)
 
-
+@whooshee.register_model('product_name','description','manufacturer')
 class Products(db.Model):
     product_id = db.Column(db.Integer, primary_key=True)
     product_name = db.Column(db.String(200), nullable=False)
     product_image = db.Column(db.String(150), nullable=False)
+    manufacturer = db.Column(db.String(200), nullable=False, default=None)
     category_id = db.Column(db.Integer, db.ForeignKey(
         'categories.category_id'), nullable=False)
     description = db.Column(db.Text, nullable=False)
     orderdetails = db.relationship(
         'OrderDetails', backref=db.backref('product', lazy=True))
-    salesviewhistory = db.relationship('SalesViewHistory', backref=db.backref('product', lazy=True), cascade="all, delete-orphan")
+    salesviewhistory = db.relationship('SalesViewHistory', backref=db.backref(
+        'product', lazy=True), cascade="all, delete-orphan")
     stock_quantity = db.Column(db.Integer, nullable=False)
     price = db.Column(db.Numeric())
     date_created = db.Column(
@@ -83,7 +87,6 @@ class Products(db.Model):
 
     def __str__(self):
         return "{} {}".format(self.product_name)
-
 
 class Categories(db.Model):
     category_id = db.Column(db.Integer, primary_key=True)
@@ -96,8 +99,15 @@ class Categories(db.Model):
     def __str__(self):
         return 'category - {}'.format(self.category_name)
 
-# stores an aggregation of the total quantity ordered, total price, the customer id and the status of the order
 
+# stores information about the payment type
+class PaymentType(db.Model):
+    paymenttype_id = db.Column(db.Integer, primary_key=True)
+    payment_type = db.Column(db.String(45), nullable=False, default='direct')
+    orders = db.relationship('Orders', backref=db.backref(
+        'paymentType', lazy=True), cascade="all, delete-orphan")
+
+# stores an aggregation of the total quantity ordered, total price, the customer id and the status of the order
 
 class Orders(db.Model):
     order_id = db.Column(db.Integer, primary_key=True)
@@ -107,18 +117,21 @@ class Orders(db.Model):
     total_price = db.Column(db.Numeric())
     customer_id = db.Column(db.Integer, db.ForeignKey(
         'customers.customer_id'), nullable=False)
+    paymenttype_id = db.Column(db.Integer, db.ForeignKey(
+        PaymentType.paymenttype_id), nullable=False)
     address_id = db.Column(db.Integer, db.ForeignKey(
         'address.address_id'), nullable=False)
     orderdetails = db.relationship('OrderDetails', backref=db.backref(
         'order', lazy=True), cascade="all, delete-orphan")
     status = db.Column(db.String(25), nullable=False, default='progress')
-    #add a payment type
+    paid = db.Column(db.Integer, nullable=False, default=0)
+    transaction_id =  db.Column(db.Integer, nullable=True)
+    transaction_reference = db.Column(db.String(25), nullable=True)
 
     def __str__(self):
         return "{} {}".format(self.total_quantity, self.total_price)
 
 # stores the breakdown detail of every order into individual product,quantity ordered and the cost of each
-
 
 class OrderDetails(db.Model):
     order_detail_id = db.Column(db.Integer, primary_key=True)
@@ -139,6 +152,8 @@ class Vendor(db.Model):
     account_number = db.Column(db.String(10), nullable=False)
     account_name = db.Column(db.String(100), nullable=False)
     bank = db.Column(db.String(50))
+    reviews = db.relationship('Review', backref=db.backref(
+        'vendor', lazy=True), cascade="all, delete-orphan")
     phone_number = db.Column(db.String(13), nullable=False)
     full_address = db.Column(db.Text, nullable=False)
 
@@ -175,9 +190,20 @@ class Vendor(db.Model):
         return sha256.verify(password, hash)
 
 
-
 class SalesViewHistory(db.Model):
-     vsales_id = db.Column(db.Integer, primary_key=True)
-     product_id = db.Column(db.Integer,db.ForeignKey('products.product_id'))
-     total_views = db.Column(db.Integer)
-     total_sales = db.Column(db.Integer)
+    vsales_id = db.Column(db.Integer, primary_key=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('products.product_id'))
+    total_views = db.Column(db.Integer)
+    total_sales = db.Column(db.Integer)
+
+
+class Review(db.Model):
+    review_id = db.Column(db.Integer, primary_key=True)
+    comment = db.Column(db.Text, nullable=False)
+    date_created = db.Column(
+        db.DateTime, nullable=False, default=datetime.utcnow)
+    customer_id = db.Column(db.Integer, db.ForeignKey(
+        'customers.customer_id'), nullable=False)
+    vendor_id = db.Column(db.Integer, db.ForeignKey(
+        'vendor.vendor_id'), nullable=False)
+
