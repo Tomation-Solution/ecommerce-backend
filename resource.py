@@ -189,6 +189,7 @@ class CustomerOrders(AuthRequiredResources):
                 order_id=the_order.order_id, product_id=order['product_id'], quantity=order['quantity'], cost=order['cost'])
             db.session.add(each_order)
         db.session.commit()
+
         # return full details of the stored order
         the_order = Orders.query.get(the_order.order_id)
         response = OrdersSchema().dump(the_order)
@@ -263,7 +264,7 @@ class CustomerOrder(AuthRequiredResources):
         result = Orders.query.filter_by(order_id=order_id).first()
         db.session.delete(result)
         db.session.commit()
-        return {"status": "success", "data": "order with id {} deleted".format(order_id)}, HTTP_204_NO_CONTENT
+        return {"status": "success", "data": "order with id {} deleted".format(order_id)}, HTTP_200_OK
 
 
 # api to work with individual customers
@@ -444,16 +445,22 @@ class Product(Resource):
         except:
             return {"status": "error", "data": "No product with such id"}
         # update the view history
-        new_total_views = result.salesviewhistory[0].total_views + 1
-        SalesViewHistory.query.filter_by(product_id=product_id).update({
-            salesviewhistory.total_views: new_total_views
-        })
+        if len(result.salesviewhistory) > 0: # if a record for the product salesviewhistory exist
+            # get the total view and increment by one
+            new_total_views = result.salesviewhistory[0].total_views + 1
+            SalesViewHistory.query.filter_by(product_id=product_id).update({
+            SalesViewHistory.total_views: new_total_views
+            })
+        else:
+            # create a new record for the number of no of views starting as 1
+            new_record = SalesViewHistory(product_id=product_id,total_views=1,total_sales=0)
+            db.session.add(new_record)
         db.session.commit()
         # get the required product and return a response
         response = ProductsSchema().dump(result)
         response['total_views'] = result.salesviewhistory[0].total_views
         response['total_sales'] = result.salesviewhistory[0].total_sales
-        return {"status": "error", "data": response}
+        return {"status": "success", "data": response}
 
     @auth.login_required
     def patch(self, product_id):
@@ -495,6 +502,16 @@ class Product(Resource):
         response = Products.query.get(product_id)
         response = ProductsSchema().dump(response)
         return {"status": "success", "data": response}, HTTP_200_OK
+    
+    def delete(self, product_id):
+        try:
+            product = Products.query.get_or_404(product_id)
+        except:
+            return {"status": "error", "data": "No Product with such id"}, HTTP_404_NOT_FOUND
+        result = Products.query.filter_by(product_id=product_id).first()
+        db.session.delete(result)
+        db.session.commit()
+        return {"status": "success", "data": "Product with id {} deleted".format(product_id)}, HTTP_200_OK
 
 # api to handle orders related activities by vendor
 
@@ -537,6 +554,7 @@ class Category(Resource):
         response = CategoriesSchema().dump(theCategory)
         return {"status": "success", "data": response}, HTTP_200_OK
 
+    @auth.login_required
     def patch(self, category_id):
         try:
             theCategory = Categories.query.get_or_404(category_id)
@@ -550,6 +568,17 @@ class Category(Resource):
         db.session.commit()
         response = CategoriesSchema().dump(theCategory)
         return {"status": "success", "data": response}, HTTP_200_OK
+    
+    @auth.login_required
+    def delete(self, category_id):
+        try:
+            product = Categories.query.get_or_404(category_id)
+        except:
+            return {"status": "error", "data": "No Category with such id"}, HTTP_404_NOT_FOUND
+        result = Categories.query.filter_by(category_id=category_id).first()
+        db.session.delete(result)
+        db.session.commit()
+        return {"status": "success", "data": "Category with id {} deleted".format(category_id)}, HTTP_200_OK
 
 
 class PaymentTypes(Resource):

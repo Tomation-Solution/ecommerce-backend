@@ -77,7 +77,7 @@ class Products(db.Model):
         'categories.category_id'), nullable=False)
     description = db.Column(db.Text, nullable=False)
     orderdetails = db.relationship(
-        'OrderDetails', backref=db.backref('product', lazy=True))
+        'OrderDetails', backref=db.backref('product', lazy=True), cascade="all, delete-orphan")
     salesviewhistory = db.relationship('SalesViewHistory', backref=db.backref(
         'product', lazy=True), cascade="all, delete-orphan")
     stock_quantity = db.Column(db.Integer, nullable=False)
