@@ -63,8 +63,8 @@ class CustomerRegistration(Resource):
                 password=Customers.generate_hash(data['password'])
             )
             try:
-                send_mail("Welcome to Our pharmaceutic e-commerce platform",
-                          data['email'], email=data['email'], password=data['password'])
+                #send_mail("Welcome to Our pharmaceutic e-commerce platform",
+                #          data['email'], email=data['email'], password=data['password'])
                 c.save_to_db()
                 user = Customers.query.filter_by(email=data['email']).first()
                 access_token = user.generate_auth_token()
@@ -631,7 +631,12 @@ class addresses(AuthRequiredResources):
 
     # get all addresses for a user
     def get(self):
-        result = Address.query.all()
+        try:
+            customer = Customers.query.get_or_404(g.user.customer_id)
+        except:
+            return {"status": "error", "data": "No customer with such id found"}, HTTP_404_NOT_FOUND
+        # result = Address.query.all()
+        result = customer.address
         response = AddressSchema(many=True).dump(result)
         return {"status":"success","data":response},HTTP_200_OK
 
