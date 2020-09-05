@@ -73,6 +73,7 @@ class CustomerRegistration(Resource):
                     'access_token': access_token.decode(),
                     'firstname': data['firstname'],
                     'lastname': data['lastname'],
+                    'email': data['email'],
                     'customer_id': user.customer_id
                 }, HTTP_201_CREATED
             except:
@@ -100,7 +101,8 @@ class CustomerLogin(Resource):
                 'access_token': access_token.decode(),
                 'firstname': user.firstname,
                 'lastname': user.lastname,
-                'customer_id': user.customer_id
+                'customer_id': user.customer_id,
+                'email': user.email
             }
         else:
             return {'status': 'error',
@@ -197,8 +199,8 @@ class CustomerOrders(AuthRequiredResources):
         response['paymenttype'] = the_order.paymentType.payment_type
         body = "Your order with order id {} has been recieved, ensure to login to monitor your order status".format(
             the_order.order_id)
-        send_mail("MAIL ORDER RECIEVED", recipient=g.user.email, body=body)
-        return response, HTTP_201_CREATED
+        #send_mail("MAIL ORDER RECIEVED", recipient=g.user.email, body=body)
+        return {"status": "success","data": response}, HTTP_201_CREATED
 
     # customer gets all his orders
     def get(self):
