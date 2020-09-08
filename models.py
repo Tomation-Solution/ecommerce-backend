@@ -77,7 +77,7 @@ class Products(db.Model):
         'categories.category_id'), nullable=False)
     description = db.Column(db.Text, nullable=False)
     orderdetails = db.relationship(
-        'OrderDetails', backref=db.backref('product', lazy=True))
+        'OrderDetails', backref=db.backref('product', lazy=True), cascade="all, delete-orphan")
     salesviewhistory = db.relationship('SalesViewHistory', backref=db.backref(
         'product', lazy=True), cascade="all, delete-orphan")
     stock_quantity = db.Column(db.Integer, nullable=False)
@@ -125,7 +125,7 @@ class Orders(db.Model):
         'order', lazy=True), cascade="all, delete-orphan")
     status = db.Column(db.String(25), nullable=False, default='progress')
     paid = db.Column(db.Integer, nullable=False, default=0)
-    transaction_id =  db.Column(db.Integer, nullable=True)
+    transaction_id =  db.Column(db.String(100), nullable=True)
     transaction_reference = db.Column(db.String(25), nullable=True)
 
     def __str__(self):

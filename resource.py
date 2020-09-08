@@ -8,6 +8,7 @@ from status import *
 from flask_httpauth import HTTPBasicAuth, HTTPTokenAuth
 from models import *
 from config import mail
+from config import *
 from flask_mail import Message
 from helper import send_mail, ALLOWED_EXTENSIONS
 from dbschema import *
@@ -63,8 +64,8 @@ class CustomerRegistration(Resource):
                 password=Customers.generate_hash(data['password'])
             )
             try:
-                send_mail("Welcome to Our pharmaceutic e-commerce platform",
-                          data['email'], email=data['email'], password=data['password'])
+                #send_mail("Welcome to Our pharmaceutic e-commerce platform",
+                #          data['email'], email=data['email'], password=data['password'])
                 c.save_to_db()
                 user = Customers.query.filter_by(email=data['email']).first()
                 access_token = user.generate_auth_token()
@@ -73,6 +74,7 @@ class CustomerRegistration(Resource):
                     'access_token': access_token.decode(),
                     'firstname': data['firstname'],
                     'lastname': data['lastname'],
+                    'email': data['email'],
                     'customer_id': user.customer_id
                 }, HTTP_201_CREATED
             except:
@@ -100,7 +102,8 @@ class CustomerLogin(Resource):
                 'access_token': access_token.decode(),
                 'firstname': user.firstname,
                 'lastname': user.lastname,
-                'customer_id': user.customer_id
+                'customer_id': user.customer_id,
+                'email': user.email
             }
         else:
             return {'status': 'error',
@@ -189,6 +192,7 @@ class CustomerOrders(AuthRequiredResources):
                 order_id=the_order.order_id, product_id=order['product_id'], quantity=order['quantity'], cost=order['cost'])
             db.session.add(each_order)
         db.session.commit()
+
         # return full details of the stored order
         the_order = Orders.query.get(the_order.order_id)
         response = OrdersSchema().dump(the_order)
@@ -196,8 +200,8 @@ class CustomerOrders(AuthRequiredResources):
         response['paymenttype'] = the_order.paymentType.payment_type
         body = "Your order with order id {} has been recieved, ensure to login to monitor your order status".format(
             the_order.order_id)
-        send_mail("MAIL ORDER RECIEVED", recipient=g.user.email, body=body)
-        return response, HTTP_201_CREATED
+        #send_mail("MAIL ORDER RECIEVED", recipient=g.user.email, body=body)
+        return {"status": "success","data": response}, HTTP_201_CREATED
 
     # customer gets all his orders
     def get(self):
@@ -212,6 +216,7 @@ class CustomerOrders(AuthRequiredResources):
 
 class CustomerOrder(AuthRequiredResources):
     # customer cancels a specific order
+   
     def patch(self, order_id):
         try:
             order = Orders.query.get_or_404(order_id)
@@ -235,6 +240,7 @@ class CustomerOrder(AuthRequiredResources):
         }, HTTP_200_OK
 
     # customer fetch a specific order
+    
     def get(self, order_id):
         try:
             order = Orders.query.get_or_404(order_id)
@@ -255,6 +261,7 @@ class CustomerOrder(AuthRequiredResources):
             "data": d_order
         }
 
+   
     def delete(self, order_id):
         try:
             order = Orders.query.get_or_404(order_id)
@@ -263,7 +270,7 @@ class CustomerOrder(AuthRequiredResources):
         result = Orders.query.filter_by(order_id=order_id).first()
         db.session.delete(result)
         db.session.commit()
-        return {"status": "success", "data": "order with id {} deleted".format(order_id)}, HTTP_204_NO_CONTENT
+        return {"status": "success", "data": "order with id {} deleted".format(order_id)}, HTTP_200_OK
 
 
 # api to work with individual customers
@@ -444,16 +451,22 @@ class Product(Resource):
         except:
             return {"status": "error", "data": "No product with such id"}
         # update the view history
-        new_total_views = result.salesviewhistory[0].total_views + 1
-        SalesViewHistory.query.filter_by(product_id=product_id).update({
-            salesviewhistory.total_views: new_total_views
-        })
+        if len(result.salesviewhistory) > 0: # if a record for the product salesviewhistory exist
+            # get the total view and increment by one
+            new_total_views = result.salesviewhistory[0].total_views + 1
+            SalesViewHistory.query.filter_by(product_id=product_id).update({
+            SalesViewHistory.total_views: new_total_views
+            })
+        else:
+            # create a new record for the number of no of views starting as 1
+            new_record = SalesViewHistory(product_id=product_id,total_views=1,total_sales=0)
+            db.session.add(new_record)
         db.session.commit()
         # get the required product and return a response
         response = ProductsSchema().dump(result)
         response['total_views'] = result.salesviewhistory[0].total_views
         response['total_sales'] = result.salesviewhistory[0].total_sales
-        return {"status": "error", "data": response}
+        return {"status": "success", "data": response}
 
     @auth.login_required
     def patch(self, product_id):
@@ -495,6 +508,16 @@ class Product(Resource):
         response = Products.query.get(product_id)
         response = ProductsSchema().dump(response)
         return {"status": "success", "data": response}, HTTP_200_OK
+    
+    def delete(self, product_id):
+        try:
+            product = Products.query.get_or_404(product_id)
+        except:
+            return {"status": "error", "data": "No Product with such id"}, HTTP_404_NOT_FOUND
+        result = Products.query.filter_by(product_id=product_id).first()
+        db.session.delete(result)
+        db.session.commit()
+        return {"status": "success", "data": "Product with id {} deleted".format(product_id)}, HTTP_200_OK
 
 # api to handle orders related activities by vendor
 
@@ -537,6 +560,7 @@ class Category(Resource):
         response = CategoriesSchema().dump(theCategory)
         return {"status": "success", "data": response}, HTTP_200_OK
 
+    @auth.login_required
     def patch(self, category_id):
         try:
             theCategory = Categories.query.get_or_404(category_id)
@@ -550,6 +574,17 @@ class Category(Resource):
         db.session.commit()
         response = CategoriesSchema().dump(theCategory)
         return {"status": "success", "data": response}, HTTP_200_OK
+    
+    @auth.login_required
+    def delete(self, category_id):
+        try:
+            product = Categories.query.get_or_404(category_id)
+        except:
+            return {"status": "error", "data": "No Category with such id"}, HTTP_404_NOT_FOUND
+        result = Categories.query.filter_by(category_id=category_id).first()
+        db.session.delete(result)
+        db.session.commit()
+        return {"status": "success", "data": "Category with id {} deleted".format(category_id)}, HTTP_200_OK
 
 
 class PaymentTypes(Resource):
@@ -602,7 +637,12 @@ class addresses(AuthRequiredResources):
 
     # get all addresses for a user
     def get(self):
-        result = Address.query.all()
+        try:
+            customer = Customers.query.get_or_404(g.user.customer_id)
+        except:
+            return {"status": "error", "data": "No customer with such id found"}, HTTP_404_NOT_FOUND
+        # result = Address.query.all()
+        result = customer.address
         response = AddressSchema(many=True).dump(result)
         return {"status":"success","data":response},HTTP_200_OK
 
