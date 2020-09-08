@@ -8,6 +8,7 @@ from status import *
 from flask_httpauth import HTTPBasicAuth, HTTPTokenAuth
 from models import *
 from config import mail
+from config import *
 from flask_mail import Message
 from helper import send_mail, ALLOWED_EXTENSIONS
 from dbschema import *
@@ -215,6 +216,7 @@ class CustomerOrders(AuthRequiredResources):
 
 class CustomerOrder(AuthRequiredResources):
     # customer cancels a specific order
+   
     def patch(self, order_id):
         try:
             order = Orders.query.get_or_404(order_id)
@@ -238,6 +240,7 @@ class CustomerOrder(AuthRequiredResources):
         }, HTTP_200_OK
 
     # customer fetch a specific order
+    
     def get(self, order_id):
         try:
             order = Orders.query.get_or_404(order_id)
@@ -258,6 +261,7 @@ class CustomerOrder(AuthRequiredResources):
             "data": d_order
         }
 
+   
     def delete(self, order_id):
         try:
             order = Orders.query.get_or_404(order_id)

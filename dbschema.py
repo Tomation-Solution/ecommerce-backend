@@ -32,7 +32,7 @@ class OrdersSchema(Schema):
     status = fields.Str(required=True)
     address_id = fields.Integer(strict=True)
     paid = fields.Integer(required=True, strick=True)
-    transaction_id = fields.Integer(required=True, strick=True)
+    transaction_id = fields.String(required=True)
     transaction_reference = fields.String(required=True)
     orders = fields.List(fields.Nested(OrderSchema()))
 
